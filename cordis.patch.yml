@@ -1,0 +1,8 @@
+# dsh-model-provider-picker bundle patch.
+#
+# Host 半身挂载此行；浏览器半身由 package.json 的 dsh.client 声明提供，
+# 并绑定在 name 为裸包名的这一行上（子路径行不会携带半身）。
+- insert:
+    - id: model-provider-picker
+      name: 'dsh-model-provider-picker'
+      config: {}

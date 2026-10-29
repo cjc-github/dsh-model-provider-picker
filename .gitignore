@@ -1,0 +1,15 @@
+# 依赖
+node_modules/
+pnpm-lock.yaml
+
+# 打包产物
+*.tgz
+
+# 日志与系统文件
+*.log
+.DS_Store
+Thumbs.db
+
+# 编辑器
+.vscode/
+.idea/

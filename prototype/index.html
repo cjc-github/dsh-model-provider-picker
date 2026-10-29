@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>DSH 模型选择器 — 原型</title>
+<style>
+  /* ── 设计令牌：贴近 DSH 现有主题变量 ───────────────────────────── */
+  :root {
+    --bg: #16181d;
+    --bg-elevated: #1e2127;
+    --bg-sunken: #121419;
+    --border: #2b2f38;
+    --border-strong: #3a3f4a;
+    --text: #e6e8ec;
+    --text-secondary: #a8aeb9;
+    --text-tertiary: #717986;
+    --accent: #4c8dff;
+    --accent-soft: rgba(76, 141, 255, 0.14);
+    --danger: #ff6b6b;
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+            "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    --mono: "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 40px 24px 80px;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page { max-width: 1180px; margin: 0 auto; }
+
+  h1 { font-size: 22px; font-weight: 600; margin: 0 0 6px; letter-spacing: -0.01em; }
+  .lede { color: var(--text-secondary); margin: 0 0 36px; font-size: 14px; }
+  .lede code {
+    font-family: var(--mono); font-size: 12.5px;
+    background: var(--bg-sunken); border: 1px solid var(--border);
+    padding: 1px 6px; border-radius: var(--radius-sm); color: var(--accent);
+  }
+  .lede b { color: var(--text); font-weight: 600; }
+
+  section { margin-bottom: 44px; }
+  h2 {
+    font-size: 13px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--text-tertiary);
+    margin: 0 0 4px;
+  }
+  .section-note { color: var(--text-secondary); margin: 0 0 18px; font-size: 13px; }
+
+  .demo { display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; }
+  .demo-col { flex: 1 1 380px; min-width: 340px; }
+
+  /* ── 1. composer 里的模型位触发器 ─────────────────────────────── */
+  .composer {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px 16px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .composer-strip { display: flex; align-items: center; justify-content: space-between; }
+
+  .trigger {
+    display: inline-flex; align-items: baseline; gap: 6px;
+    height: 28px; padding: 0 8px 0 10px;
+    border: none; border-radius: var(--radius-sm);
+    background: transparent; color: var(--text-secondary);
+    font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .trigger:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .trigger .icon { align-self: center; color: var(--text-tertiary); display: flex; }
+  .trigger .model { color: var(--text); }
+  /* 推理等级：与模型名不同的样式（更小、更淡） */
+  .trigger .effort {
+    font-size: 11px; color: var(--text-tertiary);
+    align-self: center; white-space: nowrap;
+  }
+  .trigger .chev {
+    align-self: center; transition: transform .12s; color: var(--text-tertiary);
+  }
+  .trigger.open .chev { transform: rotate(180deg); }
+  .composer-hint { color: var(--text-tertiary); font-size: 12.5px; }
+
+  /* ── 2. 模型选择器（对话框与设置页共用同一组件） ───────────────── */
+  .picker {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-strong);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .picker-head {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .picker-head .title { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; }
+  .picker-head .sub { font-size: 11px; color: var(--text-tertiary); }
+  .back-btn {
+    border: none; background: transparent; color: var(--text-secondary);
+    cursor: pointer; padding: 4px; border-radius: var(--radius-sm);
+    display: flex; align-items: center; line-height: 0;
+  }
+  .back-btn:hover { background: rgba(255,255,255,.06); color: var(--text); }
+
+  .picker-search {
+    display: flex; align-items: center; gap: 6px;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .picker-search input {
+    flex: 1; min-width: 0;
+    background: transparent; border: none; outline: none;
+    color: var(--text); font: inherit; font-size: 13px;
+  }
+  .picker-search input::placeholder { color: var(--text-tertiary); }
+  .picker-search .search-icon { color: var(--text-tertiary); display: flex; }
+  .picker-search .clear {
+    border: none; background: transparent; color: var(--text-tertiary);
+    cursor: pointer; padding: 2px; border-radius: var(--radius-sm);
+    display: none; line-height: 0;
+  }
+  .picker-search .clear:hover { color: var(--text); background: rgba(255,255,255,.06); }
+  .picker-search.filled .clear { display: block; }
+
+  .picker-body { overflow-y: auto; padding: 4px; }
+  .picker-body::-webkit-scrollbar { width: 8px; }
+  .picker-body::-webkit-scrollbar-thumb {
+    background: #33383f; border-radius: 4px; border: 2px solid var(--bg-elevated);
+  }
+
+  /* 厂商行：点击整行展开下方模型列表 */
+  .row-provider {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 8px 10px;
+    border: none; background: transparent; border-radius: var(--radius-sm);
+    color: var(--text); font: inherit; font-size: 13px; font-weight: 500;
+    cursor: pointer; text-align: left;
+  }
+  .row-provider:hover { background: rgba(255,255,255,0.05); }
+  .row-provider .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-provider .count {
+    font-size: 11px; color: var(--text-tertiary); font-weight: 400; flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+  .row-provider.current { background: var(--accent-soft); }
+  .row-provider.current .name { color: var(--accent); }
+  .row-provider.hidden { opacity: .45; }
+
+  /* 模型行：缩进一级 */
+  .row-model {
+    display: flex; align-items: center; gap: 8px;
+    width: 100%; padding: 7px 10px 7px 26px;
+    border: none; background: transparent; border-radius: var(--radius-sm);
+    color: var(--text-secondary); font: inherit; font-size: 13px;
+    cursor: pointer; text-align: left;
+  }
+  .row-model:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .row-model.selected { color: var(--text); background: var(--accent-soft); }
+  .row-model .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .row-model .model-id {
+    font-family: var(--mono); font-size: 10.5px; color: var(--text-tertiary);
+    flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .row-model .check { display: flex; flex: none; color: var(--accent); }
+  .row-model.hidden { opacity: .45; }
+  /* 模型行上的等级徽章：比模型名更淡 */
+  .row-model .effort-tag {
+    font-size: 10.5px; color: var(--text-tertiary);
+    flex: none; white-space: nowrap;
+  }
+
+  /* 推理等级行（对话框的第二屏） */
+  .row-effort {
+    display: flex; align-items: center; gap: 9px;
+    width: 100%; padding: 9px 12px;
+    border: none; background: transparent; border-radius: var(--radius-sm);
+    color: var(--text-secondary); font: inherit; font-size: 13px;
+    cursor: pointer; text-align: left;
+  }
+  .row-effort:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .row-effort.active { color: var(--accent); background: var(--accent-soft); }
+  .row-effort .dot {
+    width: 6px; height: 6px; border-radius: 50%; flex: none;
+    background: var(--border-strong);
+  }
+  .row-effort.active .dot { background: var(--accent); }
+  .row-effort .e-name { flex: 1; min-width: 0; }
+  .row-effort .e-desc { font-size: 11px; color: var(--text-tertiary); flex: none; }
+
+  .empty { padding: 22px 12px; color: var(--text-tertiary); font-size: 12.5px; text-align: center; }
+
+  /* 对话框遮罩 */
+  .modal-mask {
+    position: fixed; inset: 0; z-index: 1000;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .modal { width: 380px; max-width: 100%; }
+
+  /* ── 3. 设置页 ─────────────────────────────────────────────────── */
+  .settings {
+    background: var(--bg-elevated);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px 22px;
+    display: flex; flex-direction: column; gap: 18px;
+  }
+  .settings h3 { margin: 0; font-size: 15px; font-weight: 600; }
+  .settings .intro { margin: 0; color: var(--text-secondary); font-size: 13px; line-height: 20px; }
+  .settings .picker { box-shadow: none; }
+
+  .prov {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    background: var(--bg-sunken);
+  }
+  .prov-head { display: flex; align-items: center; gap: 10px; }
+  .prov-head .name { font-weight: 600; font-size: 13.5px; }
+  .prov-head .pid { font-family: var(--mono); font-size: 11px; color: var(--text-tertiary); }
+  .prov-head .count { margin-left: auto; font-size: 11px; color: var(--text-tertiary); }
+  .badge {
+    font-size: 11px; color: var(--text-tertiary);
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 0 7px; white-space: nowrap;
+  }
+  .models { margin: 8px 0 0 22px; display: flex; flex-direction: column; gap: 1px; }
+  .model-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; font-size: 12.5px; color: var(--text-secondary); }
+  .model-row .m-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .model-row .m-id { font-family: var(--mono); font-size: 10.5px; color: var(--text-tertiary); }
+  .model-row .m-efforts {
+    font-size: 10.5px; color: var(--text-tertiary);
+    border: 1px solid var(--border-strong); border-radius: 999px;
+    padding: 0 6px; white-space: nowrap; flex: none;
+  }
+
+  /* 开关 */
+  .switch {
+    position: relative; width: 32px; height: 18px; flex: none;
+    border-radius: 999px; border: 1px solid var(--border-strong);
+    background: #2a2e36; cursor: pointer; padding: 0; transition: background .15s;
+  }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--text-tertiary); transition: transform .15s, background .15s;
+  }
+  .switch[aria-checked="true"] { background: var(--accent); border-color: var(--accent); }
+  .switch[aria-checked="true"]::after { transform: translateX(14px); background: #fff; }
+  .switch:disabled { opacity: .4; cursor: default; }
+
+  /* ── 4. 状态一览 ──────────────────────────────────────────────── */
+  .states { display: flex; gap: 14px; flex-wrap: wrap; }
+  .state-card {
+    flex: 1 1 220px; background: var(--bg-elevated);
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 14px 16px;
+  }
+  .state-card .k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--text-tertiary); }
+  .state-card .v { margin-top: 6px; font-size: 13px; color: var(--text-secondary); }
+  .state-card .v b { color: var(--text); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>模型选择器 · 原型</h1>
+  <p class="lede">
+    composer 的模型位显示「<b>模型名 推理等级</b>」；点它弹出对话框，对话框里是<b>两级列表</b>——
+    默认只看到厂商，点厂商整行就在下方展开它的模型；点模型后再选推理等级。
+    设置页里嵌着<b>同一个选择器组件</b>，对话框的列表就是由它渲染的。
+    隐藏规则存放在 Host 设置命名空间 <code>model-provider-picker</code>。
+  </p>
+
+  <section>
+    <h2>一、composer 模型位 → 对话框</h2>
+    <p class="section-note">
+      触发器上模型名与推理等级用不同样式（等级更小更淡）。点模型后，若该模型提供推理等级，
+      对话框切到第二屏让你选等级；选完即提交。不提供等级的模型点一下就直接选中。
+    </p>
+    <div class="demo">
+      <div class="demo-col">
+        <div class="composer">
+          <div class="composer-strip">
+            <button class="trigger" id="trigger">
+              <span class="icon">
+                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <ellipse cx="8" cy="4" rx="5" ry="2.2"/><path d="M3 4v8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2V4"/><path d="M3 8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2"/>
+                </svg>
+              </span>
+              <span class="model" id="triggerModel">DeepSeek-V4.1-Flash</span>
+              <span class="effort" id="triggerEffort">low</span>
+              <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
+                <path d="M4 6l4 4 4-4"/>
+              </svg>
+            </button>
+            <span class="composer-hint">← 点它打开对话框</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="demo-col">
+        <div class="picker" id="inlinePicker"></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>二、设置页 · 模型选择器 + 可见性开关</h2>
+    <p class="section-note">
+      上半部分是同一个模型选择器（可以直接在这里试用）；下半部分是厂商／模型的可见性开关——
+      关掉的厂商或模型不会出现在上面的选择器和 composer 的对话框里。
+    </p>
+    <div class="settings">
+      <div>
+        <h3>模型选择器</h3>
+        <p class="intro">
+          两级列表：点厂商展开它的模型，点模型再选推理等级。此处隐藏的厂商或模型不会出现在选择器里。
+        </p>
+      </div>
+      <div class="picker" id="settingsPicker"></div>
+      <div id="settingsBody"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>三、状态一览</h2>
+    <div class="states">
+      <div class="state-card">
+        <div class="k">当前选择</div>
+        <div class="v" id="sCurrent">—</div>
+      </div>
+      <div class="state-card">
+        <div class="k">可见厂商 / 模型</div>
+        <div class="v" id="sCounts">—</div>
+      </div>
+      <div class="state-card">
+        <div class="k">已隐藏</div>
+        <div class="v" id="sHidden">—</div>
+      </div>
+      <div class="state-card">
+        <div class="k">持久化</div>
+        <div class="v"><b>model-provider-picker</b> 命名空间<br>hiddenProviders / hiddenModels</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- 对话框挂载点 -->
+<div id="modalRoot"></div>
+
+<script>
+// ────────────────────────────────────────────────────────────────────
+// 数据：Host 的模型目录（厂商 → 模型 → 推理等级）
+// ────────────────────────────────────────────────────────────────────
+const CATALOG = [
+  { id: "deepseek-account", name: "DeepSeek 账号", models: [
+    { id: "deepseek-v4.1-flash", name: "DeepSeek-V4.1-Flash",
+      reasoning: { defaultEffort: "low", efforts: [
+        { id: "off", name: "关闭", desc: "不思考" },
+        { id: "low", name: "low", desc: "轻量思考" },
+        { id: "high", name: "high", desc: "深度思考" }]}},
+    { id: "deepseek-chat", name: "DeepSeek-Chat",
+      reasoning: { defaultEffort: "low", efforts: [
+        { id: "low", name: "low" }, { id: "high", name: "high" }]}},
+    { id: "deepseek-reasoner", name: "DeepSeek-Reasoner" },
+  ]},
+  { id: "deepseek-official", name: "DeepSeek 开放平台", models: [
+    { id: "deepseek-chat", name: "DeepSeek-Chat",
+      reasoning: { defaultEffort: "high", efforts: [
+        { id: "low", name: "low" }, { id: "high", name: "high" }]}},
+    { id: "deepseek-reasoner", name: "DeepSeek-Reasoner" },
+    { id: "deepseek-coder", name: "DeepSeek-Coder-V2" },
+  ]},
+  { id: "raccoon", name: "Raccoon", models: [
+    { id: "sn-deepseek-v4-1-flash-1017", name: "DeepSeek-V4.1-Flash",
+      reasoning: { defaultEffort: "on", efforts: [
+        { id: "off", name: "关闭" }, { id: "on", name: "开启" }]}},
+    { id: "sn-kimi-k3", name: "Kimi K3",
+      reasoning: { defaultEffort: "high", efforts: [
+        { id: "low", name: "low" }, { id: "medium", name: "medium" },
+        { id: "high", name: "high" }, { id: "max", name: "max" }]}},
+    { id: "sn-minimax-m3", name: "MiniMax-M3" },
+    { id: "sn-glm-5.2", name: "GLM-5.2" },
+  ]},
+  { id: "minimax-cn", name: "MiniMax 国内", models: [
+    { id: "MiniMax-M2.7", name: "MiniMax-M2.7" },
+    { id: "MiniMax-M3", name: "MiniMax-M3" },
+  ]},
+  { id: "sensenova", name: "SenseNova", models: [
+    { id: "kimi-k3", name: "kimi-k3" },
+    { id: "deepseek-v4-flash", name: "deepseek-v4-flash" },
+    { id: "glm-5.2", name: "glm-5.2" },
+  ]},
+];
+
+// ────────────────────────────────────────────────────────────────────
+// 状态
+// ────────────────────────────────────────────────────────────────────
+const state = {
+  hiddenProviders: new Set(),
+  hiddenModels: new Set(),          // "provider/model"
+  current: { provider: "raccoon", model: "sn-deepseek-v4-1-flash-1017", reasoningEffort: "on" },
+  expandedProviders: new Set(),     // 哪些厂商展开了模型列表
+  dialog: { open: false, view: "list", pending: null, query: "" },
+  settingsQuery: "",
+};
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function visibleCatalog() {
+  return CATALOG
+    .filter((g) => !state.hiddenProviders.has(g.id))
+    .map((g) => ({ ...g, models: g.models.filter((m) => !state.hiddenModels.has(`${g.id}/${m.id}`)) }))
+    .filter((g) => g.models.length > 0);
+}
+
+/** 某个模型当前生效的强度档位 id（显式选择优先，否则用默认档）。 */
+function effectiveEffort(model, providerId) {
+  if (!model) return undefined;
+  const isCurrent = state.current.model === model.id &&
+    (providerId === undefined || state.current.provider === providerId);
+  if (isCurrent && state.current.reasoningEffort !== undefined) return state.current.reasoningEffort;
+  return model.reasoning?.defaultEffort;
+}
+/** 强度档位的展示名。 */
+function effortLabel(model, providerId) {
+  if (!model?.reasoning) return undefined;
+  const id = effectiveEffort(model, providerId);
+  if (id === undefined) return undefined;
+  return model.reasoning.efforts.find((e) => e.id === id)?.name ?? id;
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 模型选择器组件：对话框与设置页共用
+//
+// opts = {
+//   query, onQuery,            搜索词与变更回调
+//   view, pending,             当前视图（list / effort）与待选模型
+//   onPickProvider,            点厂商行
+//   onPickModel,               点模型行
+//   onPickEffort,              点等级行
+//   onBack,                    从等级视图返回
+//   showSearch,                是否显示搜索框
+//   title,                     标题
+// }
+// ────────────────────────────────────────────────────────────────────
+function renderPicker(container, opts) {
+  const q = (opts.query ?? "").trim().toLowerCase();
+
+  // ── 头部 ──
+  // 第一屏：标题 + 操作提示。
+  // 第二屏：返回按钮 + 「选择推理等级」+ 正在选等级的模型名。
+  let head;
+  if (opts.view === "effort" && opts.pending) {
+    const g = visibleCatalog().find((x) => x.id === opts.pending.provider);
+    const m = g?.models.find((x) => x.id === opts.pending.model);
+    head = `<div class="picker-head">
+      <button class="back-btn" data-back="1" aria-label="返回">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3L5 8l5 5"/></svg>
+      </button>
+      <span class="title">选择推理等级</span>
+      <span class="sub">${esc(m?.name ?? opts.pending.model)}</span>
+    </div>`;
+  } else {
+    head = `<div class="picker-head">
+      <span class="title">${esc(opts.title ?? "选择模型")}</span>
+      <span class="sub">两级列表 · 点厂商展开</span>
+    </div>`;
+  }
+
+  // ── 搜索框 ──
+  const search = opts.showSearch === false ? "" : `
+    <div class="picker-search${q === "" ? "" : " filled"}" id="pickerSearch">
+      <span class="search-icon">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5L14 14"/>
+        </svg>
+      </span>
+      <input type="text" placeholder="搜索厂商、模型或推理等级…" value="${esc(opts.query ?? "")}" data-search="1" autocomplete="off" />
+      <button class="clear" data-clear="1" aria-label="清除搜索">
+        <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4l8 8M12 4l-8 8"/></svg>
+      </button>
+    </div>`;
+
+  // ── 主体 ──
+  let body = "";
+
+  if (opts.view === "effort" && opts.pending) {
+    // 第二屏：选推理等级
+    const g = visibleCatalog().find((x) => x.id === opts.pending.provider);
+    const m = g?.models.find((x) => x.id === opts.pending.model);
+    if (!m?.reasoning) {
+      body = `<div class="empty">该模型未提供推理等级。</div>`;
+    } else {
+      const active = effectiveEffort(m, g.id);
+      body = m.reasoning.efforts.map((e) => `
+        <button class="row-effort${e.id === active ? " active" : ""}" data-effort="${esc(g.id)}"
+                data-model="${esc(m.id)}" data-eid="${esc(e.id)}" role="menuitemradio" aria-checked="${e.id === active}">
+          <span class="dot"></span>
+          <span class="e-name">${esc(e.name)}</span>
+          ${e.desc ? `<span class="e-desc">${esc(e.desc)}</span>` : ""}
+        </button>`).join("");
+    }
+  } else {
+    // 第一屏：两级列表
+    const groups = visibleCatalog().map((g) => {
+      const providerHit = q !== "" && (g.name.toLowerCase().includes(q) || g.id.toLowerCase().includes(q));
+      const models = q === "" ? g.models : g.models.filter((m) =>
+        providerHit ||
+        m.id.toLowerCase().includes(q) ||
+        m.name.toLowerCase().includes(q) ||
+        (m.reasoning?.efforts ?? []).some((e) => e.id.toLowerCase().includes(q) || e.name.toLowerCase().includes(q)));
+      return { ...g, models };
+    }).filter((g) => q === "" || g.models.length > 0);
+
+    if (groups.length === 0) {
+      body = `<div class="empty">${q === "" ? "暂无可用模型" : "没有匹配的厂商、模型或推理等级。"}</div>`;
+    } else {
+      body = groups.map((g) => {
+        // 搜索时强制展开命中的厂商，否则看点击状态
+        const expanded = q !== "" ? true : state.expandedProviders.has(g.id);
+        const isCurrent = state.current.provider === g.id;
+        const providerHidden = state.hiddenProviders.has(g.id);
+        let html = `
+          <button class="row-provider${isCurrent ? " current" : ""}${providerHidden ? " hidden" : ""}"
+                  data-provider="${esc(g.id)}" aria-expanded="${expanded}">
+            <span class="name">${esc(g.name)}</span>
+            <span class="count">${g.models.length}</span>
+          </button>`;
+        if (expanded) {
+          html += g.models.map((m) => {
+            const selected = isCurrent && state.current.model === m.id;
+            const modelHidden = state.hiddenModels.has(`${g.id}/${m.id}`);
+            const effort = selected ? effortLabel(m, g.id) : undefined;
+            return `
+              <button class="row-model${selected ? " selected" : ""}${modelHidden ? " hidden" : ""}"
+                      data-pick="${esc(g.id)}" data-model="${esc(m.id)}">
+                <span class="name">${esc(m.name)}</span>
+                ${effort !== undefined ? `<span class="effort-tag">${esc(effort)}</span>` : ""}
+                <span class="model-id">${esc(m.id)}</span>
+                ${selected ? `<span class="check">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8.5l3.5 3.5L13 5"/></svg>
+                </span>` : ""}
+              </button>`;
+          }).join("");
+        }
+        return html;
+      }).join("");
+    }
+  }
+
+  container.innerHTML = head + search + `<div class="picker-body">${body}</div>`;
+
+  // ── 事件绑定 ──
+  const searchInput = container.querySelector("[data-search]");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => opts.onQuery(e.target.value));
+    // 打开时自动聚焦并全选，方便直接输入覆盖
+    if (opts.autoFocus) { searchInput.focus(); searchInput.select(); }
+  }
+  const clearBtn = container.querySelector("[data-clear]");
+  if (clearBtn) clearBtn.addEventListener("click", () => { opts.onQuery(""); searchInput?.focus(); });
+  const backBtn = container.querySelector("[data-back]");
+  if (backBtn) backBtn.addEventListener("click", () => opts.onBack());
+  container.querySelectorAll("[data-provider]").forEach((el) => {
+    el.addEventListener("click", () => opts.onPickProvider(el.dataset.provider));
+  });
+  container.querySelectorAll("[data-pick]").forEach((el) => {
+    el.addEventListener("click", () => opts.onPickModel(el.dataset.pick, el.dataset.model));
+  });
+  container.querySelectorAll("[data-effort]").forEach((el) => {
+    el.addEventListener("click", () => opts.onPickEffort(el.dataset.effort, el.dataset.model, el.dataset.eid));
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────
+// composer 模型位 + 对话框
+// ────────────────────────────────────────────────────────────────────
+function openDialog() {
+  state.dialog = { open: true, view: "list", pending: null, query: "" };
+  renderModal();
+}
+function closeDialog() {
+  state.dialog.open = false;
+  renderModal();
+}
+
+function renderModal() {
+  const root = $("modalRoot");
+  if (!state.dialog.open) { root.innerHTML = ""; $("trigger").classList.remove("open"); return; }
+  $("trigger").classList.add("open");
+  root.innerHTML = `<div class="modal-mask" data-mask="1">
+    <div class="picker modal" id="dialogPicker"></div>
+  </div>`;
+  renderPicker($("dialogPicker"), {
+    query: state.dialog.query,
+    onQuery: (v) => { state.dialog.query = v; renderPicker($("dialogPicker"), dialogOpts()); },
+    view: state.dialog.view,
+    pending: state.dialog.pending,
+    onPickProvider: (id) => {
+      state.expandedProviders.has(id) ? state.expandedProviders.delete(id) : state.expandedProviders.add(id);
+      renderPicker($("dialogPicker"), dialogOpts());
+    },
+    onPickModel: (provider, model) => {
+      const g = visibleCatalog().find((x) => x.id === provider);
+      const m = g?.models.find((x) => x.id === model);
+      if (m?.reasoning && m.reasoning.efforts.length > 0) {
+        // 有推理等级 → 切到第二屏
+        state.dialog.view = "effort";
+        state.dialog.pending = { provider, model };
+        renderPicker($("dialogPicker"), dialogOpts());
+      } else {
+        // 无等级 → 直接选中
+        state.current = { provider, model, reasoningEffort: undefined };
+        closeDialog();
+        renderAll();
+      }
+    },
+    onPickEffort: (provider, model, eid) => {
+      state.current = { provider, model, reasoningEffort: eid };
+      closeDialog();
+      renderAll();
+    },
+    onBack: () => {
+      state.dialog.view = "list";
+      state.dialog.pending = null;
+      renderPicker($("dialogPicker"), dialogOpts());
+    },
+    autoFocus: true,
+  });
+  $("modalRoot").querySelector("[data-mask]").addEventListener("mousedown", (e) => {
+    if (e.target.dataset.mask) closeDialog();
+  });
+}
+function dialogOpts() {
+  return {
+    query: state.dialog.query,
+    onQuery: (v) => { state.dialog.query = v; renderPicker($("dialogPicker"), dialogOpts()); },
+    view: state.dialog.view,
+    pending: state.dialog.pending,
+    onPickProvider: (id) => {
+      state.expandedProviders.has(id) ? state.expandedProviders.delete(id) : state.expandedProviders.add(id);
+      renderPicker($("dialogPicker"), dialogOpts());
+    },
+    onPickModel: (provider, model) => {
+      const g = visibleCatalog().find((x) => x.id === provider);
+      const m = g?.models.find((x) => x.id === model);
+      if (m?.reasoning && m.reasoning.efforts.length > 0) {
+        state.dialog.view = "effort";
+        state.dialog.pending = { provider, model };
+        renderPicker($("dialogPicker"), dialogOpts());
+      } else {
+        state.current = { provider, model, reasoningEffort: undefined };
+        closeDialog();
+        renderAll();
+      }
+    },
+    onPickEffort: (provider, model, eid) => {
+      state.current = { provider, model, reasoningEffort: eid };
+      closeDialog();
+      renderAll();
+    },
+    onBack: () => {
+      state.dialog.view = "list";
+      state.dialog.pending = null;
+      renderPicker($("dialogPicker"), dialogOpts());
+    },
+    autoFocus: true,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 内联展示用（第一区右侧，常开）
+// ────────────────────────────────────────────────────────────────────
+function renderInlinePicker() {
+  renderPicker($("inlinePicker"), {
+    query: "",
+    onQuery: () => {},
+    view: "list",
+    showSearch: false,
+    title: "模型选择器（默认只显示厂商）",
+    onPickProvider: (id) => {
+      state.expandedProviders.has(id) ? state.expandedProviders.delete(id) : state.expandedProviders.add(id);
+      renderInlinePicker();
+    },
+    onPickModel: (provider, model) => {
+      const g = visibleCatalog().find((x) => x.id === provider);
+      const m = g?.models.find((x) => x.id === model);
+      if (m?.reasoning && m.reasoning.efforts.length > 0) {
+        state.current = { provider, model, reasoningEffort: m.reasoning.defaultEffort };
+      } else {
+        state.current = { provider, model, reasoningEffort: undefined };
+      }
+      renderAll();
+    },
+    onPickEffort: () => {},
+    onBack: () => {},
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 设置页：选择器 + 可见性开关
+// ────────────────────────────────────────────────────────────────────
+function renderSettingsPicker() {
+  renderPicker($("settingsPicker"), {
+    query: state.settingsQuery,
+    onQuery: (v) => { state.settingsQuery = v; renderSettingsPicker(); },
+    view: "list",
+    title: "模型选择器",
+    onPickProvider: (id) => {
+      state.expandedProviders.has(id) ? state.expandedProviders.delete(id) : state.expandedProviders.add(id);
+      renderSettingsPicker();
+    },
+    onPickModel: (provider, model) => {
+      const g = visibleCatalog().find((x) => x.id === provider);
+      const m = g?.models.find((x) => x.id === model);
+      if (m?.reasoning && m.reasoning.efforts.length > 0) {
+        state.current = { provider, model, reasoningEffort: m.reasoning.defaultEffort };
+      } else {
+        state.current = { provider, model, reasoningEffort: undefined };
+      }
+      renderAll();
+    },
+    onPickEffort: () => {},
+    onBack: () => {},
+  });
+}
+
+function renderSettings() {
+  const body = $("settingsBody");
+  body.innerHTML = CATALOG.map((g) => {
+    const providerHidden = state.hiddenProviders.has(g.id);
+    const hiddenCount = g.models.filter((m) => state.hiddenModels.has(`${g.id}/${m.id}`)).length;
+    const expanded = state.expandedProviders.has(g.id);
+    return `
+      <div class="prov">
+        <div class="prov-head">
+          <span class="name">${esc(g.name)}</span>
+          <span class="pid">${esc(g.id)}</span>
+          ${hiddenCount > 0 ? `<span class="badge">已隐藏 ${hiddenCount} 个模型</span>` : ""}
+          <span class="count">${g.models.length}</span>
+          <button class="switch" role="switch" aria-checked="${!providerHidden}"
+                  data-prov="${esc(g.id)}" aria-label="${esc(g.name)}"></button>
+        </div>
+        ${expanded ? `<div class="models">${g.models.map((m) => {
+          const hidden = state.hiddenModels.has(`${g.id}/${m.id}`);
+          const effortCount = m.reasoning?.efforts.length ?? 0;
+          return `
+            <div class="model-row">
+              <button class="switch" role="switch" aria-checked="${!hidden}"
+                      data-model="${esc(g.id)}" data-mid="${esc(m.id)}"
+                      aria-label="${esc(m.name)}" ${providerHidden ? "disabled" : ""}></button>
+              <span class="m-name">${esc(m.name)}</span>
+              ${effortCount > 0 ? `<span class="m-efforts">${effortCount} 档强度</span>` : ""}
+              <span class="m-id">${esc(m.id)}</span>
+            </div>`;
+        }).join("")}</div>` : ""}
+      </div>`;
+  }).join("");
+
+  body.querySelectorAll("[data-prov]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const id = el.dataset.prov;
+      state.hiddenProviders.has(id) ? state.hiddenProviders.delete(id) : state.hiddenProviders.add(id);
+      renderAll();
+    });
+  });
+  body.querySelectorAll("[data-model]").forEach((el) => {
+    el.addEventListener("click", () => {
+      const key = `${el.dataset.model}/${el.dataset.mid}`;
+      state.hiddenModels.has(key) ? state.hiddenModels.delete(key) : state.hiddenModels.add(key);
+      renderAll();
+    });
+  });
+}
+
+// ────────────────────────────────────────────────────────────────────
+// 触发器与状态栏
+// ────────────────────────────────────────────────────────────────────
+function renderTrigger() {
+  const vis = visibleCatalog();
+  const cur = vis.flatMap((g) => g.models.filter((m) => m.id === state.current.model).map((m) => ({ g, m })))[0];
+  const eff = cur ? effortLabel(cur.m, cur.g.id) : undefined;
+  $("triggerModel").textContent = cur ? cur.m.name : state.current.model;
+  const pill = $("triggerEffort");
+  if (eff !== undefined) {
+    pill.textContent = eff;
+    pill.style.display = "";
+  } else {
+    pill.style.display = "none";
+  }
+}
+
+function renderStatus() {
+  const vis = visibleCatalog();
+  const modelCount = vis.reduce((n, g) => n + g.models.length, 0);
+  const cur = vis.flatMap((g) => g.models.filter((m) => m.id === state.current.model).map((m) => ({ g, m })))[0];
+  const eff = cur ? effortLabel(cur.m, cur.g.id) : undefined;
+  $("sCurrent").innerHTML = cur
+    ? `<b>${esc(cur.g.name)}</b> / ${esc(cur.m.name)}${eff ? ` · <b>${esc(eff)}</b>` : ""}`
+    : `${esc(state.current.provider)} / ${esc(state.current.model)} <b>（已隐藏）</b>`;
+  $("sCounts").innerHTML = `<b>${vis.length}</b> 个厂商 · <b>${modelCount}</b> 个模型`;
+  const hiddenP = [...state.hiddenProviders];
+  const hiddenM = [...state.hiddenModels];
+  $("sHidden").innerHTML = hiddenP.length + hiddenM.length === 0
+    ? "无"
+    : `${hiddenP.length ? `<b>厂商</b> ${esc(hiddenP.join(", "))}` : ""}${hiddenP.length && hiddenM.length ? " · " : ""}${hiddenM.length ? `<b>模型</b> ${esc(hiddenM.join(", "))}` : ""}`;
+}
+
+function renderAll() {
+  renderTrigger();
+  renderInlinePicker();
+  renderSettingsPicker();
+  renderSettings();
+  renderStatus();
+}
+
+// 触发器开合
+$("trigger").addEventListener("click", () => {
+  state.dialog.open ? closeDialog() : openDialog();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && state.dialog.open) closeDialog();
+});
+
+renderAll();
+</script>
+</body>
+</html>

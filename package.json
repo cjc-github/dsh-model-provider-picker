@@ -1,0 +1,41 @@
+{
+  "name": "dsh-model-provider-picker",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "模型选择改为「先选厂商、再选模型」两级列表，点模型后再选推理等级；并在设置中提供厂商/模型的可见性开关。",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "model-picker",
+    "deepseek-harness"
+  ],
+  "main": "./lib/index.js",
+  "exports": {
+    ".": "./lib/index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib/index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md",
+    "LICENSE"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "test": "node test/visibility.test.mjs && node test/prototype.test.mjs"
+  },
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "^4.0.5",
+    "@deepseek-ai/schemastery": "^3.18.5"
+  }
+}
