@@ -4,8 +4,10 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 
-const file = "C:/Users/Administrator/AppData/Roaming/dsh-desktop/harness/model-provider-picker/prototype/index.html";
+// 相对本测试文件定位原型页，而不是写死某台机器上的绝对路径。
+const file = fileURLToPath(new URL("../prototype/index.html", import.meta.url));
 const html = readFileSync(file, "utf8");
 const script = html.match(/<script>([\s\S]*)<\/script>/)[1];
 
