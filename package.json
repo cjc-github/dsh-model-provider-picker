@@ -20,7 +20,8 @@
     "lib/client.js",
     "cordis.patch.yml",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs/screenshots"
   ],
   "dsh": {
     "bundle": {
