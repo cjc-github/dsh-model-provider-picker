@@ -31,9 +31,13 @@
     }
   },
   "scripts": {
-    "test": "node test/visibility.test.mjs && node test/prototype.test.mjs"
+    "test": "node test/visibility.test.mjs && node test/prototype.test.mjs",
+    "screenshots": "node docs/screenshot.mjs"
   },
   "license": "MIT",
+  "devDependencies": {
+    "playwright-core": "^1.56.1"
+  },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.5",
     "@deepseek-ai/schemastery": "^3.18.5"

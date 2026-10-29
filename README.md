@@ -6,6 +6,24 @@
 
 ---
 
+## 界面预览
+
+| composer 的模型位 | 两级列表（默认只显示厂商） |
+| --- | --- |
+| ![触发器](docs/screenshots/01-trigger.png) | ![两级列表](docs/screenshots/02-picker-collapsed.png) |
+
+| 点厂商，在下方展开模型 | 选中模型后选推理等级 |
+| --- | --- |
+| ![展开厂商](docs/screenshots/03-picker-expanded.png) | ![推理等级](docs/screenshots/04-effort.png) |
+
+设置面板里的「模型选择器」分区：
+
+![设置页](docs/screenshots/05-settings.png)
+
+> 截图取自真实运行环境。为便于阅读，截图会话里隐藏了桌宠贴纸、并把菜单的毛玻璃材质换成了实底（headless 环境渲染不出 `backdrop-filter`）。
+
+---
+
 ## 功能
 
 ### 1. 两级模型列表
@@ -138,6 +156,17 @@ npm test        # 跑规则引擎 + 原型的逻辑测试
 
 也可以直接用浏览器打开 [`prototype/index.html`](prototype/index.html) 看交互原型 —— 它和 `lib/client.js` 里的实现共用同一套规则语义，是调 UI 时最快的反馈回路。
 
+### 重新生成界面截图
+
+README 里的截图由 [`docs/screenshot.mjs`](docs/screenshot.mjs) 驱动真实 GUI 生成（playwright-core + 系统 Edge，不下载额外浏览器）：
+
+```bash
+npm i -D playwright-core
+node docs/screenshot.mjs
+```
+
+脚本会从 Harness 日志里读当前启动的 GUI 地址，登录后依次操作：点模型位 → 展开厂商 → 打开推理等级屏 → 打开设置面板，输出到 `docs/screenshots/`。它会在截图会话里临时隐藏桌宠、并把菜单换成实底，避免遮挡和 headless 下的毛玻璃失真。
+
 ### 目录结构
 
 ```
@@ -149,6 +178,9 @@ npm test        # 跑规则引擎 + 原型的逻辑测试
 ├── test/
 │   ├── visibility.test.mjs   # 可见性规则引擎
 │   └── prototype.test.mjs    # 原型交互逻辑
+├── docs/
+│   ├── screenshot.mjs        # 驱动真实 GUI 生成截图
+│   └── screenshots/          # README 引用的界面图
 ├── cordis.patch.yml      # 把 Host 半身插进 profile 的 loader
 └── package.json
 ```
