@@ -1,7 +1,12 @@
 {
   "name": "dsh-model-provider-picker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cjc-github/dsh-model-provider-picker.git"
+  },
+  "homepage": "https://github.com/cjc-github/dsh-model-provider-picker#readme",
   "description": "模型选择改为「先选厂商、再选模型」两级列表，点模型后再选推理等级；并在设置中提供厂商/模型的可见性开关。",
   "keywords": [
     "dsh",
@@ -21,6 +26,7 @@
     "cordis.patch.yml",
     "README.md",
     "LICENSE",
+    "screenshots.json",
     "docs/screenshots"
   ],
   "dsh": {
