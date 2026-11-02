@@ -81,6 +81,12 @@
   }
   .trigger:hover { background: rgba(255,255,255,0.05); color: var(--text); }
   .trigger .icon { align-self: center; color: var(--text-tertiary); display: flex; }
+  /* 厂商名：比模型名更淡，最多 9em，超长省略 */
+  .trigger .provider {
+    color: var(--text-tertiary); max-width: 9em;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .trigger .sep { color: var(--text-tertiary); }
   .trigger .model { color: var(--text); }
   /* 推理等级：与模型名不同的样式（更小、更淡） */
   .trigger .effort {
@@ -303,6 +309,8 @@
                   <ellipse cx="8" cy="4" rx="5" ry="2.2"/><path d="M3 4v8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2V4"/><path d="M3 8c0 1.2 2.2 2.2 5 2.2s5-1 5-2.2"/>
                 </svg>
               </span>
+              <span class="provider" id="triggerProvider">Raccoon</span>
+              <span class="sep" id="triggerSep">·</span>
               <span class="model" id="triggerModel">DeepSeek-V4.1-Flash</span>
               <span class="effort" id="triggerEffort">low</span>
               <svg class="chev" width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6">
@@ -472,12 +480,14 @@ function renderPicker(container, opts) {
   if (opts.view === "effort" && opts.pending) {
     const g = visibleCatalog().find((x) => x.id === opts.pending.provider);
     const m = g?.models.find((x) => x.id === opts.pending.model);
+    // 头部副标题带厂商名：同名模型在不同厂商下也能分清。
+    const providerLabel = g ? g.name : opts.pending.provider;
     head = `<div class="picker-head">
       <button class="back-btn" data-back="1" aria-label="返回">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 3L5 8l5 5"/></svg>
       </button>
       <span class="title">选择推理等级</span>
-      <span class="sub">${esc(m?.name ?? opts.pending.model)}</span>
+      <span class="sub">${esc(providerLabel)} · ${esc(m?.name ?? opts.pending.model)}</span>
     </div>`;
   } else {
     head = `<div class="picker-head">
@@ -799,6 +809,11 @@ function renderTrigger() {
   const vis = visibleCatalog();
   const cur = vis.flatMap((g) => g.models.filter((m) => m.id === state.current.model).map((m) => ({ g, m })))[0];
   const eff = cur ? effortLabel(cur.m, cur.g.id) : undefined;
+  // 厂商名取自完整目录（不是可见目录）：当前厂商被隐藏时也要照实显示来源。
+  const providerGroup = CATALOG.find((g) => g.id === state.current.provider);
+  const providerLabel = providerGroup ? providerGroup.name : state.current.provider;
+  $("triggerProvider").textContent = providerLabel;
+  $("triggerSep").style.display = "";
   $("triggerModel").textContent = cur ? cur.m.name : state.current.model;
   const pill = $("triggerEffort");
   if (eff !== undefined) {
