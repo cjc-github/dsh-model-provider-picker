@@ -118,28 +118,30 @@ Raccoon                              4
 
 ### 7. API Key 显隐
 
-Key 输入框右侧有眼睛按钮，可在**明文与圆点**之间切换。编辑已有厂商时，会从本地凭证回填该厂商的 Key（详见下方「密钥回显」）。
+Key 输入框右侧有眼睛按钮，可在**明文与圆点**之间切换。若开启了「凭证回显」（见下节），编辑已有厂商时会自动预填该厂商本地已存的 Key。
 
 ---
 
-## 密钥回显（可选功能，请先读安全说明）
+## 凭证回显（默认关闭，请先读安全说明）
 
 DSH 的凭证接口是**只写**的——`credentials/set` 的官方描述明确写着 *"The value crosses the wire in this direction only: no read path returns it"*，官方设置页也因此永远只显示「已配置」状态，不回显明文。
 
-本插件额外提供回显能力，走的是插件自己的 Host 半身：
+本插件提供一个 **opt-in** 的回显开关（设置页底部「凭证回显」，**默认关闭**）：
 
-1. `lib/index.js` 启动时读取 `~/.dsh/.credentials.yaml` 的 `refs:` 段与进程环境变量，取出所有形如 `*_API_KEY` 的明文
-2. 写入 Config 中新增的 **`revealedKeys`**.volatile 字段——**不落盘、不产生第二份明文文件**，只在会话内存的设置投影里存在
-3. Client 半身编辑厂商时按该厂商的 `apiKeyEnv` 读取并预填输入框
+1. 关闭时：编辑厂商不预填 Key，Host 半身不读取任何明文，投影里的映射恒为空
+2. 开启时：`lib/index.js` 读取 `~/.dsh/.credentials.yaml` 的 `refs:` 段与 `*_API_KEY` 环境变量，写入 `revealedKeys` 字段，并监听凭证文件变化实时刷新（400ms 防抖）
+3. Client 半身编辑厂商时按该厂商的 `apiKeyEnv` 预填输入框
+4. 关闭开关立即把映射写回空，清除明文
 
-**⚠️ 安全说明**
+**⚠️ 安全说明（务必阅读）**
 
-- 这是**绕过宿主刻意设置的安全边界**：明文会短暂进入会话内的设置投影内存
-- 只对**本地文件或环境变量里的 `*_API_KEY`** 有效；OAuth 各类 token（`*_ACCOUNT_*` 的 JSON 记录）不回显
-- **适合本机自用，不建议把带此功能的版本分发出去**——对他人而言等于密钥可见性失控
+- **开启期间明文会落盘**：settings 通道（包括 volatile 字段）会持久化到 profile 的 `cordis.patch.yml`。这是该功能的已知代价——**核对完请关闭开关**
+- 这是**绕过宿主刻意设置的安全边界**；投影里的明文对同会话的其他 client 插件也可见
+- 只对**本地文件或环境变量里的 `*_API_KEY`** 有效；OAuth 类记录（`*_ACCOUNT_*` 的 JSON token）不回显
+- **不要把开启状态的配置分发出去**；分享/提交仓库前确认 `revealedKeys` 为空
 - Host 侧若未来收紧 volatile 字段投影，此功能会静默降级（不影响其他功能）
 
-不需要此功能的话，删掉 `lib/index.js` 中 `readRevealedKeys` 相关代码与 `revealedKeys` 字段即可，其余功能不受影响。
+不需要此功能的话，删掉 `lib/index.js` 中 `readRevealedKeys` / `parseRevealedKeys` 相关代码与 `revealKeysEnabled`、`revealedKeys` 两个字段即可，其余功能不受影响。
 
 ---
 
@@ -201,9 +203,13 @@ pnpm add file:/path/to/dsh-model-provider-picker-1.0.0.tgz
 model-provider-picker:
   hiddenProviders: [raccoon]                    # 整厂商隐藏
   hiddenModels: [raccoon/sn-glm-5.2]            # 单模型隐藏（provider/model）
+  revealKeysEnabled: false                      # 凭证回显开关（默认关闭）
+  revealedKeys: {}                              # 回显期间的明文映射（关闭即清空）
 ```
 
-两组都是字符串数组，因此能被 DSH 的 settings 表单安全投影、编辑与持久化。厂商被整体隐藏后，它下面的模型规则自然失效。
+两组规则都是字符串数组，因此能被 DSH 的 settings 表单安全投影、编辑与持久化。厂商被整体隐藏后，它下面的模型规则自然失效。
+
+> 注意：本命名空间的字段（含 volatile 标记）都会落盘到 profile 的 `cordis.patch.yml`。`revealedKeys` 只在回显开启期间含有明文，关闭开关即被写回空映射。
 
 ### 厂商配置与凭证
 
@@ -220,13 +226,52 @@ model-provider-picker:
 
 ```
 ├── lib/
-│   ├── index.js          # Host 半身：可见性 Config + 本地凭证回显
+│   ├── index.js          # Host 半身：可见性 Config + opt-in 凭证回显 + 文件监听
 │   └── client.js         # Client 半身：选择器 + 设置页 + 预设库（手写 ModuleLoader bundle）
+├── prototype/
+│   └── index.html        # 可交互原型（纯前端，无需 DSH）
+├── test/
+│   ├── visibility.test.mjs   # 可见性规则引擎
+│   ├── prototype.test.mjs    # 原型交互逻辑
+│   └── presets.test.mjs      # 预设库 / 提交归一化 / 编辑合并 / 回显解析
 ├── docs/
-│   └── screenshots/      # README 引用的界面图
+│   ├── market-entry/         # 插件市场收录的条目模板
+│   ├── screenshot.mjs        # 驱动真实 GUI 生成截图
+│   └── screenshots/          # README 引用的界面图
 ├── cordis.patch.yml      # 把 Host 半身插进 profile 的 loader
+├── screenshots.json      # 市场收录的截图清单
 ├── package.json
 └── README.md
+```
+
+---
+
+## 开发
+
+```bash
+npm test        # 可见性规则 + 原型逻辑 + 预设库/回显（三套，全部不依赖浏览器）
+```
+
+也可以直接用浏览器打开 [`prototype/index.html`](prototype/index.html) 看交互原型 —— 它和 `lib/client.js` 里的实现共用同一套规则语义，是调 UI 时最快的反馈回路。
+
+### 重新生成界面截图
+
+README 里的截图由 [`docs/screenshot.mjs`](docs/screenshot.mjs) 驱动真实 GUI 生成（playwright-core + 系统 Edge，不下载额外浏览器）：
+
+```bash
+npm i -D playwright-core
+node docs/screenshot.mjs
+```
+
+> 当前截图尚未包含「厂商预设库」与「凭证回显」两块新界面，欢迎重截后提 PR。
+
+### 本地开发挂载
+
+把本仓库以 junction 挂到 profile 的插件目录，改一处即生效：
+
+```powershell
+# Windows：先备份原目录，再建 junction
+New-Item -ItemType Junction -Path "<DSH_HOME>\profiles\desktop\node_modules\dsh-model-provider-picker" -Target "E:\github\dsh-model-provider-picker"
 ```
 
 ---
@@ -258,8 +303,8 @@ model-provider-picker:
 - **依赖官方 Remote 接口。** 预设库依赖 `llm-pi-ai` 命名空间与 `llm/credentials/settings` 三个 Remote 服务；上游改签名会导致预设库不可用（选择器与可见性设置不受影响）。
 - **不做键盘导航。** 当前支持鼠标点击、搜索与 Esc 关闭；官方实现里的 `↑`/`↓` 循环、Tab 焦点移交等尚未移植。
 - **规则是这台机器上的偏好。** 存在 Host 设置文档里，随 profile 走，不跨设备同步。
+- **凭证回显默认关闭，开启期间明文落盘。** 它绕过宿主的只写设计，代价见「凭证回显」章节；提交或分享配置前确认 `revealedKeys` 为空。
 - **预设清单是静态的。** 内置模型列表可能滞后于厂商更新，用「从 API 拉取」获取实时清单。
-- **密钥回显绕过宿主的只写设计。** 见上方「密钥回显」的安全说明。
 
 ---
 
